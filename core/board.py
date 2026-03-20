@@ -68,7 +68,7 @@ class Board:
         REVEALED, non-mine neighbor tiles (+1 each). Returns True if placed, False otherwise.
 
         Rules:
-        - p must be in-bounds, HIDDEN, and not already a mine.
+        - p must be in-bounds, unrevealed (HIDDEN or FLAGGED), and not already a mine.
         - (Optional) respect state.total_mines_target if set.
         - We do NOT reveal anything here; just mutate the truth (state.mines) and neighbor numbers.
         """
@@ -77,7 +77,7 @@ class Board:
             return False
 
         cell = state.grid[p[0]][p[1]]
-        if cell.state != CellState.HIDDEN:
+        if cell.state == CellState.REVEALED:
             return False
         if p in state.mines:
             return False
@@ -100,5 +100,32 @@ class Board:
                     nb_cell.number += 1
                 # if nb_cell.number == -1 → it's a revealed mine; leave as-is
             # HIDDEN or FLAGGED neighbors hold no visible number → nothing to change now
+
+        return True
+
+    def pickup_mine_and_update_numbers(self, state: GameState, p: Pos) -> bool:
+        """
+        Remove a mine from an unrevealed tile and update numbers on all
+        REVEALED, non-mine neighbor tiles (-1 each). Returns True if removed.
+
+        Rules:
+        - p must be in-bounds, unrevealed, and currently contain a mine.
+        - Does NOT modify mine stock.
+        """
+        if not self.is_in_bounds(state, p):
+            return False
+
+        cell = state.grid[p[0]][p[1]]
+        if cell.state == CellState.REVEALED:
+            return False
+        if p not in state.mines:
+            return False
+
+        state.mines.remove(p)
+
+        for nb in self.neighbors(state, p):
+            nb_cell = state.grid[nb[0]][nb[1]]
+            if nb_cell.state == CellState.REVEALED and nb_cell.number >= 0:
+                nb_cell.number -= 1
 
         return True

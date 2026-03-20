@@ -14,7 +14,7 @@ def new_game(seed: int | None = None) -> GameState:
     return GameState(
         width=BOARD_W, height=BOARD_H,
         grid=grid, mines=mines, revealed=set(), flags=set(),
-        enemy_hp=3, enemy_max_hp=3,
+        enemy_hp=3, enemy_max_hp=3, mine_stock=1, player_action_mode="PLACE",
         total_mines_target=TOTAL_MINES_TARGET,
         turn=Turn.PLAYER, phase=Phase.PLAYER_INPUT, outcome=Outcome.ONGOING,
         rng_seed=seed

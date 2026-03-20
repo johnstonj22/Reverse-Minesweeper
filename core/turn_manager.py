@@ -16,11 +16,37 @@ def all_safe_revealed(state: GameState) -> bool:
 def step(state: GameState, intent: dict | None = None) -> GameState:
     # --- PLAYER INPUT ---
     if state.phase == Phase.PLAYER_INPUT:
+        if intent and intent.get("type") == "SET_ACTION_MODE":
+            mode = intent.get("mode")
+            if mode in ("PLACE", "PICKUP"):
+                state.player_action_mode = mode
+
+        # No mines left to place -> enemy turn starts immediately.
+        if state.mine_stock <= 0:
+            state.turn = Turn.ENEMY
+            state.phase = Phase.ENEMY_THINK
+            return state
+
         if intent and intent.get("type") == "PLACE_MINE":
             pos = intent["pos"]
-            placed = _board.place_mine_and_update_numbers(state, pos)
-            # move to enemy turn only if placement succeeded
-            state.phase = Phase.ENEMY_THINK if placed else Phase.PLAYER_INPUT
+            placed = _board.place_mine_and_update_numbers(state, pos) if state.mine_stock > 0 else False
+            if placed:
+                state.mine_stock -= 1
+                # Keep player turn while mines remain; otherwise hand to enemy.
+                if state.mine_stock <= 0:
+                    state.turn = Turn.ENEMY
+                    state.phase = Phase.ENEMY_THINK
+                else:
+                    state.turn = Turn.PLAYER
+                    state.phase = Phase.PLAYER_INPUT
+        elif intent and intent.get("type") == "PICKUP_MINE":
+            pos = intent["pos"]
+            _board.pickup_mine_and_update_numbers(state, pos)
+            state.turn = Turn.PLAYER
+            state.phase = Phase.PLAYER_INPUT
+        elif intent and intent.get("type") == "SKIP_TURN":
+            state.turn = Turn.ENEMY
+            state.phase = Phase.ENEMY_THINK
         return state
 
     # --- ENEMY THINK ---
@@ -46,6 +72,7 @@ def step(state: GameState, intent: dict | None = None) -> GameState:
             state.phase = Phase.GAME_OVER
         else:
             # Next turn: back to player
+            state.mine_stock += 1
             state.turn = Turn.PLAYER
             state.phase = Phase.PLAYER_INPUT
         return state

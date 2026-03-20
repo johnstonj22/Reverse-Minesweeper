@@ -12,11 +12,21 @@ def _hidden_neighbors(state: GameState, p: Pos, board: Board) -> list[Pos]:
     return [nb for nb in board.neighbors(state, p)
             if state.grid[nb[0]][nb[1]].state == CellState.HIDDEN]
 
+def _unrevealed_neighbors(state: GameState, p: Pos, board: Board) -> list[Pos]:
+    return [nb for nb in board.neighbors(state, p)
+            if state.grid[nb[0]][nb[1]].state != CellState.REVEALED]
+
 def _flag_cell(state: GameState, q: Pos) -> None:
     state.flags.add(q)
     cell = state.grid[q[0]][q[1]]
     if cell.state == CellState.HIDDEN:
         cell.state = CellState.FLAGGED
+
+def _unflag_cell(state: GameState, q: Pos) -> None:
+    state.flags.discard(q)
+    cell = state.grid[q[0]][q[1]]
+    if cell.state == CellState.FLAGGED:
+        cell.state = CellState.HIDDEN
 
 def deduce_and_move_from_sweep(state: GameState) -> Optional[Move]:
     """
@@ -37,24 +47,29 @@ def deduce_and_move_from_sweep(state: GameState) -> Optional[Move]:
     prob: Dict[Pos, float] = {}
 
     for pos, number, hidden, flagged, revealed_mines in info:
-        remaining = number - (flagged + revealed_mines)
-        if remaining < 0 or remaining > hidden:
+        unrevealed_nbs = _unrevealed_neighbors(state, pos, board)
+        hidden_nbs = _hidden_neighbors(state, pos, board)
+        if not unrevealed_nbs:
+            continue
+
+        # Remaining mines to place around this clue are based only on known revealed mines.
+        # Flags are treated as provisional and may be removed later if contradicted.
+        remaining = number - revealed_mines
+        if remaining < 0 or remaining > len(unrevealed_nbs):
             # inconsistent clue; skip defensively
             continue
 
-        hidden_nbs = _hidden_neighbors(state, pos, board)
-
         # Deductions
         if remaining == 0:
-            for q in hidden_nbs:
+            for q in unrevealed_nbs:
                 guaranteed_safe.add(q)
-        elif remaining == hidden:
-            for q in hidden_nbs:
+        elif remaining == len(unrevealed_nbs):
+            for q in unrevealed_nbs:
                 guaranteed_mines.add(q)
 
         # Local probability for non-deductive cases
-        if 0 < remaining < hidden:
-            local_p = remaining / hidden
+        if 0 < remaining < len(unrevealed_nbs):
+            local_p = remaining / len(unrevealed_nbs)
             for q in hidden_nbs:
                 if state.grid[q[0]][q[1]].state == CellState.FLAGGED:
                     continue
@@ -66,6 +81,11 @@ def deduce_and_move_from_sweep(state: GameState) -> Optional[Move]:
     # Apply guaranteed flags first
     for q in guaranteed_mines:
         _flag_cell(state, q)
+
+    # Remove flags that are now logically guaranteed safe.
+    for q in guaranteed_safe:
+        if state.grid[q[0]][q[1]].state == CellState.FLAGGED:
+            _unflag_cell(state, q)
 
     # Reveal a guaranteed-safe tile if we have any
     safe_list = [q for q in guaranteed_safe if state.grid[q[0]][q[1]].state == CellState.HIDDEN]

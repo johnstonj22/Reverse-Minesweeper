@@ -1,7 +1,7 @@
 # core/config.py
 BOARD_W = 16
 BOARD_H = 16
-INITIAL_MINES = 40           # randomized baseline
+INITIAL_MINES = 20           # randomized baseline
 TOTAL_MINES_TARGET = None    # or an int if you want fixed total mines
 DAMAGE_PER_MINE = 1
 AI_DIFFICULTY = "medium"     # "easy" | "medium" | "hard"

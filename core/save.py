@@ -10,6 +10,8 @@ def serialize(state: GameState) -> dict:
         "revealed": list(state.revealed),
         "flags": list(state.flags),
         "enemy_hp": state.enemy_hp, "enemy_max_hp": state.enemy_max_hp,
+        "mine_stock": state.mine_stock,
+        "player_action_mode": state.player_action_mode,
         "total_mines_target": state.total_mines_target,
         "turn": state.turn.name, "phase": state.phase.name, "outcome": state.outcome.name,
         "rng_seed": state.rng_seed, "version": state.version,
@@ -28,6 +30,8 @@ def deserialize(d: dict) -> GameState:
         revealed=set(map(tuple, d["revealed"])),
         flags=set(map(tuple, d["flags"])),
         enemy_hp=d["enemy_hp"], enemy_max_hp=d["enemy_max_hp"],
+        mine_stock=d.get("mine_stock", 1),
+        player_action_mode=d.get("player_action_mode", "PLACE"),
         total_mines_target=d["total_mines_target"],
         turn=Turn[d["turn"]], phase=Phase[d["phase"]], outcome=Outcome[d["outcome"]],
         rng_seed=d["rng_seed"], version=d.get("version",1)

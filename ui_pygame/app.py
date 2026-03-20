@@ -15,6 +15,8 @@ def main():
     from ui_pygame.view import draw
 
     state = new_game()
+    enemy_move_delay_ms = 1000
+    enemy_think_ready_at = None
     running = True
     while running:
         events = pygame.event.get()
@@ -22,16 +24,29 @@ def main():
         if intent and intent.get("type") == "QUIT":
             running = False
         else:
-            state = step(state, intent)
+            now = pygame.time.get_ticks()
+            prev_phase = state.phase
+            should_advance = True
+
+            # Pause briefly so AI does not reveal instantly after player input.
+            if state.phase == Phase.ENEMY_THINK:
+                if enemy_think_ready_at is None:
+                    enemy_think_ready_at = now + enemy_move_delay_ms
+                if now < enemy_think_ready_at:
+                    should_advance = False
+
+            if should_advance:
+                state = step(state, intent)
+
+                # Start delay when entering enemy think; clear once it moves on.
+                if prev_phase != Phase.ENEMY_THINK and state.phase == Phase.ENEMY_THINK:
+                    enemy_think_ready_at = pygame.time.get_ticks() + enemy_move_delay_ms
+                elif prev_phase == Phase.ENEMY_THINK and state.phase != Phase.ENEMY_THINK:
+                    enemy_think_ready_at = None
 
         draw(screen, state, font)
         pygame.display.flip()
         clock.tick(60)
-
-        if state.phase == Phase.GAME_OVER:
-            # simple pause to show result
-            pygame.time.wait(1200)
-            running = False
 
     pygame.quit()
 

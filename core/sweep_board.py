@@ -29,15 +29,13 @@ def sweep_frontier(state: GameState) -> List[SweepInfo]:
 
                 if nb_cell.state == CellState.HIDDEN:
                     hidden += 1
-                    # (We treat "flags" separately; if you maintain state.flags,
-                    #  you can count them here instead of by CellState.)
-                    if nb in state.flags:
-                        flagged += 1
                 elif nb_cell.state == CellState.FLAGGED:
                     flagged += 1
                 elif nb_cell.state == CellState.REVEALED and nb_cell.number == -1:
                     revealed_mines += 1
 
-            if hidden > 0:
+            # Keep clues that still have any unrevealed neighbors (hidden or flagged).
+            # This allows solver logic to revisit and remove stale flags when needed.
+            if (hidden + flagged) > 0:
                 out.append((p, cell.number, hidden, flagged, revealed_mines))
     return out
