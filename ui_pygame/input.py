@@ -22,12 +22,26 @@ def grid_click_from_mouse(mx, my, top_left, tile_size, rows, cols):
         return (int(r), int(c))
     return None
 
-def get_intent(events, state: GameState):
+def get_intent(events, state: GameState, log_hitboxes=None, log_panel_rect=None):
     for e in events:
         if e.type == pygame.QUIT:
             return {"type":"QUIT"}
         if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
             return {"type":"QUIT"}
+        if e.type == pygame.MOUSEWHEEL and log_panel_rect is not None:
+            mx, my = pygame.mouse.get_pos()
+            if log_panel_rect.collidepoint((mx, my)):
+                return {"type": "SCROLL_LOG", "delta": -e.y}
+        if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+            if log_hitboxes:
+                for idx, rect in log_hitboxes:
+                    if rect.collidepoint(e.pos):
+                        return {"type": "SELECT_LOG", "index": idx}
+        if e.type == pygame.MOUSEBUTTONDOWN and e.button in (4, 5) and log_panel_rect is not None:
+            mx, my = e.pos
+            if log_panel_rect.collidepoint((mx, my)):
+                return {"type": "SCROLL_LOG", "delta": 1 if e.button == 5 else -1}
+
         if state.phase == Phase.PLAYER_INPUT and e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
             place_rect = pygame.Rect(PLACE_BTN_X, MODE_BTN_Y, MODE_BTN_W, MODE_BTN_H)
             pickup_rect = pygame.Rect(PICKUP_BTN_X, MODE_BTN_Y, MODE_BTN_W, MODE_BTN_H)

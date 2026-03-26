@@ -16,6 +16,7 @@ def all_safe_revealed(state: GameState) -> bool:
 def step(state: GameState, intent: dict | None = None) -> GameState:
     # --- PLAYER INPUT ---
     if state.phase == Phase.PLAYER_INPUT:
+        state.last_enemy_move = None
         if intent and intent.get("type") == "SET_ACTION_MODE":
             mode = intent.get("mode")
             if mode in ("PLACE", "PICKUP"):
@@ -52,6 +53,7 @@ def step(state: GameState, intent: dict | None = None) -> GameState:
     # --- ENEMY THINK ---
     if state.phase == Phase.ENEMY_THINK:
         move = deduce_and_move_from_sweep(state)
+        state.last_enemy_move = move
         # move may be None if no hidden tiles left
         if move is not None:
             # immediately apply it (we don’t need a separate ACT phase anymore)
@@ -64,6 +66,7 @@ def step(state: GameState, intent: dict | None = None) -> GameState:
 
     # --- CHECK WIN/LOSE ---
     if state.phase == Phase.CHECK_WINLOSE:
+        state.last_enemy_move = None
         if state.enemy_hp <= 0:
             state.outcome = Outcome.PLAYER_WIN
             state.phase = Phase.GAME_OVER

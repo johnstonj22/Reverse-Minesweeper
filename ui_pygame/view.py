@@ -13,8 +13,42 @@ COL_FLAG = (255, 200, 90)
 COL_BTN = (85, 95, 120)
 COL_BTN_TEXT = (245, 245, 245)
 COL_BTN_ACTIVE = (120, 135, 170)
+COL_PANEL = (34, 38, 48)
+COL_LOG_ROW = (60, 66, 82)
+COL_LOG_ACTIVE = (85, 120, 100)
+COL_LOG_LATEST = (80, 86, 105)
+COL_LOG_DETAIL = (45, 50, 64)
+COL_LOG_TITLE = (188, 198, 222)
 
-def draw(screen: pygame.Surface, state: GameState, font: pygame.font.Font):
+def _wrap_text(font: pygame.font.Font, text: str, max_width: int) -> list[str]:
+    words = text.split()
+    if not words:
+        return [""]
+    lines: list[str] = []
+    cur = words[0]
+    for w in words[1:]:
+        trial = f"{cur} {w}"
+        if font.size(trial)[0] <= max_width:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = w
+    lines.append(cur)
+    return lines
+
+def draw(
+    screen: pygame.Surface,
+    state: GameState,
+    font: pygame.font.Font,
+    move_log: list[dict] | None = None,
+    active_log_index: int | None = None,
+    log_scroll_start: int = 0,
+):
+    if move_log is None:
+        move_log = []
+    if active_log_index is None:
+        active_log_index = len(move_log) - 1
+
     screen.fill(COL_BG)
 
     # board
@@ -90,3 +124,59 @@ def draw(screen: pygame.Surface, state: GameState, font: pygame.font.Font):
         dots = "." * ((pygame.time.get_ticks() // 300) % 4)
         think_text = font.render(f"AI thinking{dots}", True, COL_TEXT)
         screen.blit(think_text, (MARGIN + 460, MARGIN))
+
+    # Move log panel
+    hitboxes: list[tuple[int, pygame.Rect]] = []
+    panel_x = MARGIN + state.width * TILE_SIZE + 24
+    panel_y = 60
+    panel_w = screen.get_width() - panel_x - MARGIN
+    panel_h = screen.get_height() - panel_y - MARGIN
+    panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+    pygame.draw.rect(screen, COL_PANEL, panel_rect, border_radius=6)
+
+    title = font.render("Move Log (click to jump)", True, COL_TEXT)
+    screen.blit(title, (panel_x + 10, panel_y + 8))
+
+    detail_h = 128
+    list_h = panel_h - 40 - detail_h - 8
+    row_h = 24
+    max_rows = max(1, list_h // row_h)
+    max_start = max(0, len(move_log) - max_rows)
+    start_idx = max(0, min(log_scroll_start, max_start))
+
+    for row, idx in enumerate(range(start_idx, len(move_log))):
+        if row >= max_rows:
+            break
+        row_rect = pygame.Rect(panel_x + 8, panel_y + 34 + row * row_h, panel_w - 16, row_h - 2)
+        if idx == active_log_index:
+            bg = COL_LOG_ACTIVE
+        elif idx == len(move_log) - 1:
+            bg = COL_LOG_LATEST
+        else:
+            bg = COL_LOG_ROW
+        pygame.draw.rect(screen, bg, row_rect, border_radius=4)
+
+        label = move_log[idx].get("label", "")
+        txt = font.render(f"{idx:03d}  {label}", True, COL_TEXT)
+        screen.blit(txt, (row_rect.x + 6, row_rect.y + 3))
+        hitboxes.append((idx, row_rect))
+
+    # Detail box for selected entry
+    detail_rect = pygame.Rect(panel_x + 8, panel_y + panel_h - detail_h - 8, panel_w - 16, detail_h)
+    pygame.draw.rect(screen, COL_LOG_DETAIL, detail_rect, border_radius=5)
+    if 0 <= active_log_index < len(move_log):
+        entry = move_log[active_log_index]
+        detail_title = font.render(f"Entry {active_log_index:03d}", True, COL_LOG_TITLE)
+        screen.blit(detail_title, (detail_rect.x + 8, detail_rect.y + 6))
+        details = entry.get("detail", "") or "No extra details."
+        lines = _wrap_text(font, details, detail_rect.w - 16)
+        max_detail_lines = max(1, (detail_rect.h - 28) // 20)
+        for i, line in enumerate(lines[:max_detail_lines]):
+            line_surf = font.render(line, True, COL_TEXT)
+            screen.blit(line_surf, (detail_rect.x + 8, detail_rect.y + 28 + i * 20))
+
+    if active_log_index != len(move_log) - 1:
+        review = font.render("Review mode: click latest log to resume", True, COL_TEXT)
+        screen.blit(review, (panel_x + 10, panel_y + panel_h - 26))
+
+    return hitboxes, panel_rect, start_idx, max_start

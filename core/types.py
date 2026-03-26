@@ -62,4 +62,5 @@ class GameState:
     phase: Phase
     outcome: Outcome
     rng_seed: int
+    last_enemy_move: Optional[Move] = None
     version: int = 1
