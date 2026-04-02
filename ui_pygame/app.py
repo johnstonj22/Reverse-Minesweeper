@@ -64,10 +64,10 @@ def main():
                 if should_advance:
                     state = step(state, intent)
 
-                    # Start delay when entering enemy think; clear once it moves on.
-                    if prev_phase != Phase.ENEMY_THINK and state.phase == Phase.ENEMY_THINK:
+                    # Keep a delay before every AI action while ENEMY_THINK is active.
+                    if state.phase == Phase.ENEMY_THINK:
                         enemy_think_ready_at = pygame.time.get_ticks() + enemy_move_delay_ms
-                    elif prev_phase == Phase.ENEMY_THINK and state.phase != Phase.ENEMY_THINK:
+                    else:
                         enemy_think_ready_at = None
 
                     # Log notable actions as timeline snapshots.
@@ -78,6 +78,13 @@ def main():
                                 f"Player placed mine at {pos}",
                                 f"Mode=PLACE. Mine stock now {state.mine_stock}.",
                             )
+                    elif intent and intent.get("type") == "PLACE_MINE_BATCH":
+                        added = list(state.mines - pre_mines)
+                        if added:
+                            push_timeline(
+                                f"Player placed {len(added)} mine(s) via drag",
+                                f"Batch PLACE. Mine stock now {state.mine_stock}.",
+                            )
                     elif intent and intent.get("type") == "PICKUP_MINE":
                         pos = intent.get("pos")
                         if pos in pre_mines and pos not in state.mines:
@@ -85,13 +92,34 @@ def main():
                                 f"Player picked up mine at {pos}",
                                 f"Mode=PICKUP. Mine stock unchanged at {state.mine_stock}.",
                             )
+                    elif intent and intent.get("type") == "PICKUP_MINE_BATCH":
+                        removed = list(pre_mines - state.mines)
+                        if removed:
+                            push_timeline(
+                                f"Player picked up {len(removed)} mine(s) via drag",
+                                f"Batch PICKUP. Mine stock unchanged at {state.mine_stock}.",
+                            )
+                    elif intent and intent.get("type") == "COVER_TILE":
+                        pos = intent.get("pos")
+                        if pos not in state.revealed and pos in pre_revealed:
+                            push_timeline(
+                                f"Player covered tile at {pos}",
+                                f"Recover stock now {state.recover_stock}.",
+                            )
+                    elif intent and intent.get("type") == "COVER_TILE_BATCH":
+                        covered = list(pre_revealed - state.revealed)
+                        if covered:
+                            push_timeline(
+                                f"Player covered {len(covered)} tile(s) via drag",
+                                f"Batch COVER. Recover stock now {state.recover_stock}.",
+                            )
                     elif intent and intent.get("type") == "SKIP_TURN":
                         push_timeline(
                             "Player skipped turn",
-                            f"Skipped with mine stock {state.mine_stock}.",
+                            f"Skipped with mine stock {state.mine_stock} and recover stock {state.recover_stock}.",
                         )
 
-                    if prev_phase == Phase.ENEMY_THINK and state.phase == Phase.CHECK_WINLOSE:
+                    if prev_phase == Phase.ENEMY_THINK and state.phase in (Phase.ENEMY_THINK, Phase.CHECK_WINLOSE):
                         newly = list(state.revealed - pre_revealed)
                         move = state.last_enemy_move
                         rationale = ""

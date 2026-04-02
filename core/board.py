@@ -5,29 +5,44 @@ from core.types import *
 
 class Board:
     DIRS = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]
+    _neighbor_cache: dict[tuple[int, int, Pos], tuple[Pos, ...]] = {}
 
     def is_in_bounds(self, state: GameState, p: Pos) -> bool:
         r,c = p
         return 0 <= r < state.height and 0 <= c < state.width
 
     def neighbors(self, state: GameState, p: Pos) -> Iterable[Pos]:
-        r,c = p
-        for dr,dc in self.DIRS:
-            q = (r+dr, c+dc)
-            if self.is_in_bounds(state, q):
-                yield q
+        key = (state.height, state.width, p)
+        cached = self._neighbor_cache.get(key)
+        if cached is None:
+            r, c = p
+            out: list[Pos] = []
+            for dr, dc in self.DIRS:
+                q = (r + dr, c + dc)
+                if self.is_in_bounds(state, q):
+                    out.append(q)
+            cached = tuple(out)
+            self._neighbor_cache[key] = cached
+        for q in cached:
+            yield q
 
     def compute_number_from_mines(self, state: GameState, p: Pos) -> int:
         return sum(n in state.mines for n in self.neighbors(state, p))
 
-    def reveal(self, state: GameState, p: Pos) -> List[Pos]:
+    def reveal(self, state: GameState, p: Pos, max_reveals: int | None = None) -> List[Pos]:
         if not self.is_in_bounds(state, p):
             return []
         cell = state.grid[p[0]][p[1]]
         if cell.state == CellState.REVEALED:
             return []
         newly: List[Pos] = []
+
+        def _budget_available() -> bool:
+            return max_reveals is None or len(newly) < max_reveals
+
         def _reveal(q: Pos):
+            if not _budget_available():
+                return
             cq = state.grid[q[0]][q[1]]
             if cq.state != CellState.HIDDEN:
                 return
@@ -42,16 +57,20 @@ class Board:
             newly.append(q)
 
         # click
+        if not _budget_available():
+            return []
         _reveal(p)
         # flood if zero and safe
-        if state.grid[p[0]][p[1]].number == 0 and p not in state.mines:
+        if newly and state.grid[p[0]][p[1]].number == 0 and p not in state.mines:
             from collections import deque
             dq = deque([p])
-            while dq:
+            while dq and _budget_available():
                 cur = dq.popleft()
                 if state.grid[cur[0]][cur[1]].number != 0: 
                     continue
                 for nb in self.neighbors(state, cur):
+                    if not _budget_available():
+                        break
                     if state.grid[nb[0]][nb[1]].state == CellState.HIDDEN and nb not in state.mines:
                         _reveal(nb)
                         if state.grid[nb[0]][nb[1]].number == 0:
@@ -128,4 +147,21 @@ class Board:
             if nb_cell.state == CellState.REVEALED and nb_cell.number >= 0:
                 nb_cell.number -= 1
 
+        return True
+
+    def cover_safe_tile(self, state: GameState, p: Pos) -> bool:
+        """
+        Cover (re-hide) a revealed non-mine tile so AI may need to uncover it again.
+        Returns True if covered.
+        """
+        if not self.is_in_bounds(state, p):
+            return False
+        cell = state.grid[p[0]][p[1]]
+        if cell.state != CellState.REVEALED:
+            return False
+        if cell.number < 0 or p in state.mines:
+            return False
+
+        cell.state = CellState.HIDDEN
+        state.revealed.discard(p)
         return True

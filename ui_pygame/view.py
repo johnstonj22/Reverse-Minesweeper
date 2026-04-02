@@ -94,27 +94,34 @@ def draw(
 
     stock_text = font.render(f"Mine Stock: {state.mine_stock}", True, COL_TEXT)
     screen.blit(stock_text, (MARGIN + 130, MARGIN))
+    recover_text = font.render(f"Recover Stock: {state.recover_stock}", True, COL_TEXT)
+    screen.blit(recover_text, (MARGIN + 280, MARGIN))
 
     # Phase/Turn
     phase_text = font.render(f"{state.turn.name} / {state.phase.name}", True, COL_TEXT)
-    screen.blit(phase_text, (MARGIN + 310, MARGIN))
+    screen.blit(phase_text, (MARGIN + 470, MARGIN))
 
     # Player action mode controls.
     if state.phase == Phase.PLAYER_INPUT:
-        place_rect = pygame.Rect(MARGIN + 500, MARGIN - 2, 90, 28)
-        pickup_rect = pygame.Rect(MARGIN + 600, MARGIN - 2, 90, 28)
+        place_rect = pygame.Rect(MARGIN + 470, MARGIN - 2, 90, 28)
+        pickup_rect = pygame.Rect(MARGIN + 560, MARGIN - 2, 90, 28)
+        cover_rect = pygame.Rect(MARGIN + 650, MARGIN - 2, 90, 28)
         place_col = COL_BTN_ACTIVE if state.player_action_mode == "PLACE" else COL_BTN
         pickup_col = COL_BTN_ACTIVE if state.player_action_mode == "PICKUP" else COL_BTN
+        cover_col = COL_BTN_ACTIVE if state.player_action_mode == "COVER" else COL_BTN
         pygame.draw.rect(screen, place_col, place_rect, border_radius=4)
         pygame.draw.rect(screen, pickup_col, pickup_rect, border_radius=4)
+        pygame.draw.rect(screen, cover_col, cover_rect, border_radius=4)
         place_label = font.render("Place", True, COL_BTN_TEXT)
         pickup_label = font.render("Pickup", True, COL_BTN_TEXT)
+        cover_label = font.render("Cover", True, COL_BTN_TEXT)
         screen.blit(place_label, place_label.get_rect(center=place_rect.center))
         screen.blit(pickup_label, pickup_label.get_rect(center=pickup_rect.center))
+        screen.blit(cover_label, cover_label.get_rect(center=cover_rect.center))
 
-    # Skip turn control (only useful when player can still act).
-    if state.phase == Phase.PLAYER_INPUT and state.mine_stock > 0:
-        btn_rect = pygame.Rect(MARGIN + 700, MARGIN - 2, 120, 28)
+    # Skip turn control.
+    if state.phase == Phase.PLAYER_INPUT:
+        btn_rect = pygame.Rect(MARGIN + 740, MARGIN - 2, 120, 28)
         pygame.draw.rect(screen, COL_BTN, btn_rect, border_radius=4)
         label = font.render("Skip Turn", True, COL_BTN_TEXT)
         screen.blit(label, label.get_rect(center=btn_rect.center))

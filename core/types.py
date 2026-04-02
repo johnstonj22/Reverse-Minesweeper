@@ -55,8 +55,10 @@ class GameState:
     flags: Set[Pos]
     enemy_hp: int
     enemy_max_hp: int
+    ai_reveals_remaining: int
     mine_stock: int
-    player_action_mode: str  # "PLACE" | "PICKUP"
+    recover_stock: int
+    player_action_mode: str  # "PLACE" | "PICKUP" | "COVER"
     total_mines_target: Optional[int]
     turn: Turn
     phase: Phase
